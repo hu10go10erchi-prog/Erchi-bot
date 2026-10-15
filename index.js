@@ -1,84 +1,93 @@
-const { 
-  Client, 
-  GatewayIntentBits, 
-  EmbedBuilder, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  ChannelType, 
+const http = require('http');
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
   PermissionsBitField,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle
 } = require('discord.js');
 
-// ==========================================
-// CONFIGURACIÓN CENTRAL DE ERCHI
-// ==========================================
+// ===================================================
+// SERVIDOR HTTP PARA MANTENER VIVO EL BOT EN RENDER
+// ===================================================
+http.createServer((req, res) => {
+  res.write("Bot ERCHI activo 24/7 en Render");
+  res.end();
+}).listen(process.env.PORT || 3000);
+
+// ===================================================
+// CONFIGURACIÓN CENTRAL Y DE IDs
+// ===================================================
 const CONFIG = {
-  TOKEN: 'MTU1NTk5NTc3OTU1Mjc3MjI0Ng.GiwC8N.6pYP_1FYiV6dU217o0qCAMMiihaN9OeP4IN6U0',
+  TOKEN: 'MTU1NTk5NTc3OTU1Mjc3MjI0Ng.GO96F6.dKB2pEEw1p8zT-bK9-zj7AESWkrn0rprqIjq0s', // Reemplaza por tu Token actualizado de Discord
   PREFIX: '!',
   
-  // ID del canal donde el bot enviará la bienvenida
   CANAL_BIENVENIDA: '1552736136428785676',
-  
-  // ID de la categoría donde se crearán los tickets
   CATEGORIA_TICKETS: '1552736493179764766',
-
-  // IDs de los Roles
-  ROL_MIEMBRO: '1552729555075211274',        // Rol que otorga el botón de verificación
-  ROL_NUEVO_USUARIO: '1552732528698200224', // Rol automático al entrar al server
-  ROL_STAFF: '1552729476721414215'                 // Rol que verá y atenderá los tickets
+  
+  ROL_MIEMBRO: '155272955075211274',
+  ROL_NUEVO_USUARIO: '1552732528698200224',
+  ROL_STAFF: '1552729476721414215',
+  
+  ROL_STRIKE_1: '1556293453187383378',
+  ROL_STRIKE_2: '1556293504454496266'
 };
-
-// Bases de datos temporales
-const dbStrikes = new Map();
-const dbNiveles = new Map();
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.MessageContent
   ]
 });
 
+// Bases de datos en memoria
+const dbStrikes = new Map();
+const dbNiveles = new Map();
+
+// ===================================================
+// EVENTO: BOT LISTO Y PANELES
+// ===================================================
 client.once('ready', () => {
-  console.log(`=================================`);
-  console.log(`🤖 Bot Oficial ERCHI Encendido: ${client.user.tag}`);
-  console.log(`=================================`);
+  console.log(`🤖 Bot conectado exitosamente como: ${client.user.tag}`);
 });
 
-// ==========================================
-// 1. BIENVENIDA AUTOMÁTICA
-// ==========================================
+// ===================================================
+// EVENTO: BIENVENIDA Y ROLES
+// ===================================================
 client.on('guildMemberAdd', async (member) => {
-  // Asigna rol inicial si está configurado
-  if (CONFIG.ROL_NUEVO_USUARIO && CONFIG.ROL_NUEVO_USUARIO !== 'ID_DEL_ROL_SIN_VERIFICAR') {
-    await member.roles.add(CONFIG.ROL_NUEVO_USUARIO).catch(() => {});
+  try {
+    if (CONFIG.ROL_NUEVO_USUARIO) {
+      await member.roles.add(CONFIG.ROL_NUEVO_USUARIO);
+    }
+    const canal = member.guild.channels.cache.get(CONFIG.CANAL_BIENVENIDA);
+    if (canal) {
+      const embed = new EmbedBuilder()
+        .setTitle('¡Bienvenido/a al servidor! 👋')
+        .setDescription(`Hola ${member}, por favor dirígete al canal de verificación para obtener acceso total.`)
+        .setColor('#00FF7F')
+        .setTimestamp();
+      canal.send({ embeds: [embed] });
+    }
+  } catch (error) {
+    console.error('Error en evento bienvenida:', error);
   }
-
-  const canal = member.guild.channels.cache.get(CONFIG.CANAL_BIENVENIDA);
-  if (!canal) return;
-
-  const embedBienvenida = new EmbedBuilder()
-    .setTitle('🔥 ¡BIENVENIDO/A A ERCHI!')
-    .setDescription(`¡Hola <@${member.id}>!\n\nTe damos la bienvenida al servidor oficial de **ERCHI**.\n\n👉 Pásate por el canal de verificación para obtener acceso al resto del servidor.`)
-    .setColor('#2ECC71')
-    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-    .setFooter({ text: 'ERCHI • Comunidad Oficial' })
-    .setTimestamp();
-
-  canal.send({ embeds: [embedBienvenida] }).catch(() => {});
 });
 
-// ==========================================
-// 2. COMANDOS DE TEXTO &
-const http = require('http');
+// ===================================================
+// EVENTO: COMANDOS Y SISTEMA DE NIVELES (XP)
+// ===================================================
+client.on('messageCreate', async (message) => {
+  if (message.author.bot || !message.guild) return;
 
-// Servidor básico para mantener Render contento en el plan Free
-http.createServer((req, res) => {
-  res.write("Bot de ERCHI está encendido 24/7");
-  res.end();
-}).listen(process.env.PORT || 3000);
+  // --- Sistema de Niveles (XP) ---
+  const userId = message.author.id;
+  let userData = dbNiveles.get(userId) || { xp: 0, nivel: 1 };
+  userData.
