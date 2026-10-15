@@ -7,10 +7,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
-  PermissionsBitField,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle
+  PermissionsBitField
 } = require('discord.js');
 
 // ===================================================
@@ -24,7 +21,6 @@ http.createServer((req, res) => {
 // ===================================================
 // CONFIGURACIÓN CENTRAL Y DE IDs
 // ===================================================
-
 const CONFIG = {
   TOKEN: process.env.DISCORD_TOKEN,
   PREFIX: '!',
@@ -54,7 +50,7 @@ const dbStrikes = new Map();
 const dbNiveles = new Map();
 
 // ===================================================
-// EVENTO: BOT LISTO Y PANELES
+// EVENTO: BOT LISTO
 // ===================================================
 client.once('ready', () => {
   console.log(`🤖 Bot conectado exitosamente como: ${client.user.tag}`);
@@ -91,4 +87,53 @@ client.on('messageCreate', async (message) => {
   // --- Sistema de Niveles (XP) ---
   const userId = message.author.id;
   let userData = dbNiveles.get(userId) || { xp: 0, nivel: 1 };
-  userData.
+  userData.xp += Math.floor(Math.random() * 10) + 5;
+  
+  const xpNecesaria = userData.nivel * 100;
+  if (userData.xp >= xpNecesaria) {
+    userData.nivel += 1;
+    userData.xp = 0;
+    message.channel.send(`🎉 ¡Felicidades ${message.author}! Has subido al **Nivel ${userData.nivel}**.`);
+  }
+  dbNiveles.set(userId, userData);
+
+  // --- Comandos con Prefijo ---
+  if (!message.content.startsWith(CONFIG.PREFIX)) return;
+  const args = message.content.slice(CONFIG.PREFIX.length).trim().split(/ +/);
+  const command = args.shift().toLowerCase();
+
+  const esStaff = message.member.roles.cache.has(CONFIG.ROL_STAFF) || message.member.permissions.has(PermissionsBitField.Flags.Administrator);
+
+  // COMANDO: !panel-verificacion (Staff)
+  if (command === 'panel-verificacion') {
+    if (!esStaff) return message.reply('❌ No tienes permisos de Staff para usar este comando.');
+    
+    const embed = new EmbedBuilder()
+      .setTitle('🛡️ Verificación de Miembros')
+      .setDescription('Haz clic en el botón de abajo para verificar tu cuenta y acceder al resto de canales.')
+      .setColor('#1E90FF');
+
+    const btn = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('btn_verificar')
+        .setLabel('Verificarme')
+        .setStyle(ButtonStyle.Success)
+    );
+
+    message.channel.send({ embeds: [embed], components: [btn] });
+  }
+
+  // COMANDO: !panel-tickets (Staff)
+  if (command === 'panel-tickets') {
+    if (!esStaff) return message.reply('❌ No tienes permisos de Staff para usar este comando.');
+
+    const embed = new EmbedBuilder()
+      .setTitle('📩 Soporte y Atenciones')
+      .setDescription('Si necesitas ayuda o realizar una consulta al Staff, abre un ticket presionando el botón.')
+      .setColor('#FF8C00');
+
+    const btn = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('btn_crear_ticket')
+        .setLabel('Abrir Ticket')
+        .
