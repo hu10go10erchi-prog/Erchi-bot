@@ -24,8 +24,9 @@ http.createServer((req, res) => {
 // ===================================================
 // CONFIGURACIÓN CENTRAL Y DE IDs
 // ===================================================
+
 const CONFIG = {
-  TOKEN: 'MTU1NTk5NTc3OTU1Mjc3MjI0Ng.GKoFKS.kLTSdsetvtLIOwHvvIeQFDI9UI1RQ4_mFxv4_Q', // Reemplaza por tu Token actualizado de Discord
+  TOKEN: process.env.DISCORD_TOKEN,
   PREFIX: '!',
   
   CANAL_BIENVENIDA: '1552736136428785676',
