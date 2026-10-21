@@ -2,12 +2,40 @@ const http = require('http');
 const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 
-// Servidor Keep-Alive HTTP para mantener Render activo 24/7 sin suspensiones
-http.createServer((req, res) => {
-    res.write('Erchi-bot está 100% activo y funcionando!');
-    res.end();
-}).listen(process.env.PORT || 3000);
+const url = require('url');
 
+// --- SERVIDOR KEEP-ALIVE Y API WEB DE VALIDACIÓN ---
+http.createServer((req, res) => {
+    const parsedUrl = url.parse(req.url, true);
+
+    // Permite que cualquier app o cliente consulte la API por internet
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', 'application/json');
+
+    if (parsedUrl.pathname === '/validar-key') {
+        const keyIngresada = (parsedUrl.query.key || '').trim().toUpperCase();
+        const currentKeys = cargarJSON('keys.json', { NORMAL: [], PREMIUM: [], ULTRA: [] });
+
+        let nivelEncontrado = null;
+        for (const [nivel, lista] of Object.entries(currentKeys)) {
+            if (Array.isArray(lista) && lista.includes(keyIngresada)) {
+                nivelEncontrado = nivel;
+                break;
+            }
+        }
+
+        if (nivelEncontrado) {
+            res.writeHead(200);
+            return res.end(JSON.stringify({ valid: true, level: nivelEncontrado }));
+        } else {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ valid: false, level: null }));
+        }
+    }
+
+    res.writeHead(200);
+    res.end('Erchi-bot está 100% activo y funcionando!');
+}).listen(process.env.PORT || 3000);
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
